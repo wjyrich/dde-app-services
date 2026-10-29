@@ -39,6 +39,37 @@ TEST(ut_dconfig_global, formatDBusObjectPathEmpty) {
     ASSERT_EQ(formatDBusObjectPath(""), "");
 }
 
+TEST(ut_dconfig_global, isValidAppId) {
+    const QStringList validAppIds{"", "org.foo.app", "org.foo-app_test"};
+    for (const QString &appid : validAppIds) {
+        EXPECT_TRUE(isValidAppId(appid)) << appid.toStdString();
+    }
+
+    const QStringList invalidAppIds{
+        ".", "..", "../org.foo", "org/foo", "org foo", "org@foo",
+        "org.foo\n", "org.foo\r\n", "org\nfoo", "org\tfoo",
+        QString::fromLatin1("org.foo\0", 8)
+    };
+    for (const QString &appid : invalidAppIds) {
+        EXPECT_FALSE(isValidAppId(appid)) << appid.toStdString();
+    }
+}
+
+TEST(ut_dconfig_global, isValidSubpath) {
+    const QStringList validSubpaths{"", "/subpath", "/subpath/nested"};
+    for (const QString &subpath : validSubpaths) {
+        EXPECT_TRUE(isValidSubpath(subpath)) << subpath.toStdString();
+    }
+
+    const QStringList invalidSubpaths{
+        "relative", "/.", "/..", "/../other", "/subpath/../other", "/subpath/./other",
+        "/", "//", "//subpath", "/subpath/", "/subpath//other"
+    };
+    for (const QString &subpath : invalidSubpaths) {
+        EXPECT_FALSE(isValidSubpath(subpath)) << subpath.toStdString();
+    }
+}
+
 // ---------------------------------------------------------------------------
 // outerAppidToInner / innerAppidToOuter
 // ---------------------------------------------------------------------------

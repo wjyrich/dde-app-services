@@ -144,6 +144,38 @@ TEST_F(ut_DConfigServer, acquireManagerV2) {
     ASSERT_EQ(server->resourceSize(), 1);
 }
 
+TEST_F(ut_DConfigServer, acquireManagersRejectInvalidPaths) {
+    const QStringList invalidAppIds{
+        ".", "..", "../org.foo.appid", "org foo", "org@foo", "org.foo\n", "org.foo\r\n", "org\tfoo"
+    };
+    for (const QString &appid : invalidAppIds) {
+        SCOPED_TRACE(appid.toStdString());
+        EXPECT_TRUE(server->acquireManager(appid, FILE_NAME, QString()).path().isEmpty());
+        EXPECT_TRUE(server->acquireManagerV2(TestUid, appid, FILE_NAME, QString()).path().isEmpty());
+    }
+    const QStringList invalidSubpaths{
+        "relative", "/.", "/..", "/../other", "/subpath/../other", "/subpath/./other",
+        "/", "//", "//subpath", "/subpath/", "/subpath//other"
+    };
+    for (const QString &subpath : invalidSubpaths) {
+        SCOPED_TRACE(subpath.toStdString());
+        EXPECT_TRUE(server->acquireManager(APP_ID, FILE_NAME, subpath).path().isEmpty());
+        EXPECT_TRUE(server->acquireManagerV2(TestUid, APP_ID, FILE_NAME, subpath).path().isEmpty());
+    }
+    EXPECT_EQ(server->resourceSize(), 0);
+}
+
+TEST_F(ut_DConfigServer, acquireManagersAllowPublicAndNestedConfig) {
+    for (const QString &appid : {QString(APP_ID), QString()}) {
+        for (const QString &subpath : {QString(), QString("/subpath"), QString("/subpath/nested")}) {
+            SCOPED_TRACE((appid + ":" + subpath).toStdString());
+            const auto path = server->acquireManager(appid, FILE_NAME, subpath).path();
+            EXPECT_FALSE(path.isEmpty());
+            EXPECT_EQ(server->acquireManagerV2(TestUid, appid, FILE_NAME, subpath).path(), path);
+        }
+    }
+}
+
 TEST_F(ut_DConfigServer, resourceSize) {
 
     auto path1 = server->acquireManager(APP_ID, FILE_NAME, QString("")).path();

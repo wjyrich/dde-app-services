@@ -271,6 +271,17 @@ QDBusObjectPath DSGConfigServer::acquireManagerV2(const uint &uid, const QString
 
     const auto &service = calledFromDBus() ? message().service() : "test.service";
     qCDebug(cfLog, "AcquireManager service:%s, uid:%d, appid:%s", qPrintable(service), uid, qPrintable(appid));
+
+    // 两个 acquireManager 入口共用此处，在构造资源前校验客户端传入的路径。
+    if (!isValidAppId(appid) || !isValidSubpath(subpath)) {
+        const QString errorMsg = QString("Invalid appid:[%1] or subpath:[%2].").arg(appid, subpath);
+        if (calledFromDBus())
+            sendErrorReply(QDBusError::InvalidArgs, errorMsg);
+
+        qWarning() << errorMsg;
+        return QDBusObjectPath();
+    }
+
     const QString &innerAppid = outerAppidToInner(appid);
     const GenericResourceKey &genericResourceKey = getGenericResourceKey(name, subpath);
     DSGConfigResource *resource = resourceObject(genericResourceKey);

@@ -84,6 +84,40 @@ struct ConfigureId {
     }
 };
 
+// 空 appid 表示公共配置（NoAppId），沿用既有语义；"." / ".." 会被当作路径
+// 分量参与缓存目录拼接，必须拒绝，避免写入其它 appid 的缓存目录。
+inline bool isValidAppId(const QString &appid)
+{
+    if (appid.isEmpty())
+        return true;
+
+    // 与 DConfigFile 的字符规则保持一致，使用绝对锚点避免放过末尾换行。
+    static const QRegularExpression reg(R"(\A[\w\-\.]+\z)");
+    if (!reg.match(appid).hasMatch())
+        return false;
+
+    return appid != "." && appid != "..";
+}
+
+// subpath 会被直接拼进缓存路径，允许 ".." 即可穿越到缓存根之外。
+inline bool isValidSubpath(const QString &subpath)
+{
+    if (subpath.isEmpty())
+        return true;
+
+    if (!subpath.startsWith('/'))
+        return false;
+
+    // 排除首个 '/' 后保留空分量，避免生成含有 '//' 的 D-Bus 路径。
+    const QStringList items = subpath.mid(1).split('/', Qt::KeepEmptyParts);
+    for (const QString &item : items) {
+        if (item.isEmpty() || item == "." || item == "..")
+            return false;
+    }
+
+    return true;
+}
+
 // remove slash if back is slash.
 static QString removeBackSlash(const QString &target)
 {
